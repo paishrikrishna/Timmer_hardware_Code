@@ -30,19 +30,19 @@ void setup() {
   
   // Comms Intialization
   EEPROM.begin(4096);
-  Serial.begin(9600);
+  Serial.begin(115200);
   RTC.begin();  // Init RTC
-  RTC.adjust(DateTime(2014, 1, 21, 23, 0, 0));
   
   /* Create Local Wifi Network to get Wifi Creds*/
   create_local_network();
 
   //Pin Config
   pinMode(D0,OUTPUT);
+  digitalWrite(D0,HIGH);
   
   // First time setup only
-  EEPROM.put(0,0);
-  EEPROM.commit();
+  //EEPROM.put(0,0);
+  //EEPROM.commit();
 
 }
 
@@ -50,47 +50,54 @@ void loop() {
   server.handleClient();
   DateTime now = RTC.now();
   int day = String(now.dayOfTheWeek()).toInt();
-  int time = (String(now.hour())+String(now.minute())).toInt();
-  Serial.println(time+"->"+day);
-  
+  int time = (String(now.hour())+String((now.minute()<10)?("0"+String(now.minute())):(now.minute()))).toInt();
+  Serial.println(String(time)+"->"+String(day));
+  relay_operations(time, day);
 }
 
-void relay_operations(){
-  DateTime now = RTC.now();
-  int day = String(now.dayOfTheWeek()).toInt();
-  int time = (String(now.hour())+String(now.minute())).toInt();
+void relay_operations(int time, int day){
+  //DateTime now = RTC.now();
+  //int day = String(now.dayOfTheWeek()).toInt();
+  //int time = (String(now.hour())+String(now.minute())).toInt();
   int TotalSchedules = 0;
   EEPROM.get(0, TotalSchedules);
 
   for(int i = 1;i<=TotalSchedules;i++){
     int Start_addr =  5 + (24 * (i -1));
     int start_hr ;
-    int start_min;
+    int Start_min;
     int end_hr;
-    int end_min ;
+    int End_min ;
     int relay_code;
     int day_code;
     int ScheduleNo;
 
 
     EEPROM.get(Start_addr,start_hr);
-    EEPROM.get(Start_addr+4,start_min);
+    EEPROM.get(Start_addr+4,Start_min);
     EEPROM.get(Start_addr+8,end_hr);
-    EEPROM.get(Start_addr+12,end_min);
+    EEPROM.get(Start_addr+12,End_min);
     EEPROM.get(Start_addr+16,day_code);
     EEPROM.get(Start_addr+20,relay_code);
 
-    String DayCode = BuildDaysCode(day_code);
-    String RelayCode = BuildRelayCode(relay_code);
+    String start_min = Start_min < 10 ? ("0" + String(Start_min)) : String(Start_min);
+    String end_min = End_min < 10 ? ("0" + String(End_min)) : String(End_min);
 
-    
+    String Str_DayCode = BuildDaysCode(day_code);
+    String Str_RelayCode = BuildRelayCode(relay_code);
+    char DayCode[8];
+    char RelayCode[Total_Relays+1];
+    Str_DayCode.toCharArray(DayCode, 8);
+    Str_RelayCode.toCharArray(RelayCode, Total_Relays+1);
+
     if( (String(start_hr)+String(start_min)).toInt()  >= (String(end_hr)+String(end_min)).toInt() ){
       if( ( time >= (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ) || ( time < (String(start_hr)+String(start_min)).toInt() && time <= (String(end_hr)+String(end_min)).toInt() ) ){
         if ( time >= (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ){
-          if(DayCode[day]==1){
-            for(int i=0;i<Total_Days;i++){
-              if(RelayCode[i]==1){
-                Serial.println("Relay " + String(i+1) + "  On For Schedule "+String(i+1));
+          if(String(DayCode[day]).toInt()==1){
+            for(int j=0;j<Total_Relays;j++){
+              if(String(RelayCode[j]).toInt()==1){
+                Serial.println("Relay " + String(j+1) + "  On For Schedule "+String(i));
+                digitalWrite(D0,LOW);
               }
             }
           }
@@ -103,29 +110,35 @@ void relay_operations(){
           else{
             dayPtr = (day-1);
           }
-          if(DayCode[dayPtr]==1){
-            for(int i=0;i<Total_Days;i++){
-              if(RelayCode[i]==1){
-                Serial.println("Relay " + String(i+1) + "  On For Schedule "+String(i+1));
+          if(String(DayCode[dayPtr]).toInt()==1){
+            for(int j=0;j<Total_Relays;j++){
+              if(String(RelayCode[j]).toInt()==1){
+                Serial.println("Relay " + String(j+1));
+                Serial.println("Schedule "+String(i+1));
+                digitalWrite(D0,LOW);
               }
             }
           }
         }
       }
       else if( ( time < (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ) ){
-        Serial.println("Relay Off For Schedule"+(i+1));
+        Serial.println("Relay Off For Schedule"+String(i));
+        digitalWrite(D0,HIGH);
       }
     }
     else if( (String(start_hr)+String(start_min)).toInt()  <= (String(end_hr)+String(end_min)).toInt() ){
       if( ( time > (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ) || ( time < (String(start_hr)+String(start_min)).toInt() && time < (String(end_hr)+String(end_min)).toInt() ) ){
-        Serial.println("Relay off For Schedule"+(i+1));
+        Serial.println("Relay off For Schedule"+String(i));
+        digitalWrite(D0,HIGH);
       }
       else if( ( time >= (String(start_hr)+String(start_min)).toInt() && time <= (String(end_hr)+String(end_min)).toInt() ) ){
-        Serial.println("Relay On For Schedule"+(i+1));
-        if(DayCode[day]==1){
-            for(int i=0;i<Total_Days;i++){
-              if(RelayCode[i]==1){
-                Serial.println("Relay " + String(i+1) + "  On For Schedule "+String(i+1));
+        //Serial.println("Relay On For Schedule"+(i+1));
+        if(String(DayCode[day]).toInt()==1){
+            for(int j=0;j<Total_Relays;j++){
+              if(String(RelayCode[j]).toInt()==1){
+                Serial.println("Relay On " + String(j+1));
+                Serial.println("Schedule "+String(i));
+                digitalWrite(D0,LOW);
               }
             }
           }
@@ -208,6 +221,8 @@ void handle__Create_Schedules() {
   String end_min = server.arg("End_min");
   String relay_code = server.arg("Relay_code");
   String day_code = server.arg("Day_code");
+
+  Serial.println(start_hr+""+start_min+""+relay_code);
 
   int Schedules = ReqType.toInt();
   if(ReqType == "I"){
