@@ -89,6 +89,8 @@ void relay_operations(int time, int day){
     char RelayCode[Total_Relays+1];
     Str_DayCode.toCharArray(DayCode, 8);
     Str_RelayCode.toCharArray(RelayCode, Total_Relays+1);
+    Serial.println(Str_DayCode);
+    Serial.println(String(DayCode[day]));
 
     if( (String(start_hr)+String(start_min)).toInt()  >= (String(end_hr)+String(end_min)).toInt() ){
       if( ( time >= (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ) || ( time < (String(start_hr)+String(start_min)).toInt() && time <= (String(end_hr)+String(end_min)).toInt() ) ){
@@ -205,7 +207,40 @@ void handle_NotFound(){
 
 // Get total Number of Relays
 void handle_Schedule_Count(){
-  server.send(200, "text/plain", String(EEPROM.read(0)));
+  String payload = "";
+  int TotalSchedules = 0;
+  EEPROM.get(0, TotalSchedules);
+
+  for(int i = 1;i<=TotalSchedules;i++){
+    int Start_addr =  5 + (24 * (i -1));
+    int Start_hr ;
+    int Start_min;
+    int End_hr;
+    int End_min ;
+
+
+    EEPROM.get(Start_addr,Start_hr);
+    EEPROM.get(Start_addr+4,Start_min);
+    EEPROM.get(Start_addr+8,End_hr);
+    EEPROM.get(Start_addr+12,End_min);
+
+    String start_min = Start_min < 10 ? ("0" + String(Start_min)) : String(Start_min);
+    String end_min = End_min < 10 ? ("0" + String(End_min)) : String(End_min);
+    String start_dur = Start_hr < 12 ? "AM" : "PM";
+    String end_dur = End_hr < 12 ? "AM" : "PM";
+    String start_hr = Start_hr == 0? "12":(Start_hr > 12 ? String(Start_hr - 12): String(Start_hr));
+    String end_hr = End_hr == 0? "12":(End_hr > 12 ? String(End_hr - 12): String(End_hr));
+
+
+    payload += ( start_hr + ":" + start_min + ";" + start_dur + ";" + end_hr + ":" + end_min + ";" + end_dur );
+
+    if(i != TotalSchedules){
+      payload += ",";
+    }
+  }
+
+  Serial.println(payload);
+  server.send(200, "text/plain", payload);
 }
 
 void handle_Relay_Count(){
@@ -406,8 +441,3 @@ void handel_delete_schedule(){
   EEPROM.commit();
   server.send(200, "text/plain", "Done");
 }
-
-
-
-
-
