@@ -41,8 +41,8 @@ void setup() {
   digitalWrite(D0,HIGH);
   
   // First time setup only
-  //EEPROM.put(0,0);
-  //EEPROM.commit();
+  EEPROM.put(0,0);
+  EEPROM.commit();
 
 }
 
@@ -50,8 +50,8 @@ void loop() {
   server.handleClient();
   DateTime now = RTC.now();
   int day = String(now.dayOfTheWeek()).toInt();
-  int time = (String(now.hour())+String((now.minute()<10)?("0"+String(now.minute())):(now.minute()))).toInt();
-  Serial.println(String(time)+"->"+String(day));
+  int time = (String(now.hour())+String((now.minute()<10)?("0"+String(now.minute())):String(now.minute()))).toInt();
+  //Serial.println(String(time)+"->"+String(day));
   relay_operations(time, day);
 }
 
