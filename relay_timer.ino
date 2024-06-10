@@ -25,6 +25,9 @@ ESP8266WebServer server(80);
 int Total_Relays = 2;
 int Total_Days = 7;
 
+int pins[] = {14,12};
+int RelaysOutput[] = {0,0};
+
 
 void setup() {
   
@@ -37,8 +40,12 @@ void setup() {
   create_local_network();
 
   //Pin Config
+  for (int i = 0; i<Total_Relays; i++){
+    pinMode(pins[i],OUTPUT);
+    digitalWrite(pins[i],HIGH);
+  }
   pinMode(D0,OUTPUT);
-  digitalWrite(D0,HIGH);
+  digitalWrite(D0,LOW);
   
   // First time setup only
   EEPROM.put(0,0);
@@ -51,7 +58,7 @@ void loop() {
   DateTime now = RTC.now();
   int day = String(now.dayOfTheWeek()).toInt();
   int time = (String(now.hour())+String((now.minute()<10)?("0"+String(now.minute())):String(now.minute()))).toInt();
-  //Serial.println(String(time)+"->"+String(day));
+  Serial.println(String(time)+"->"+String(day));
   relay_operations(time, day);
 }
 
@@ -61,6 +68,10 @@ void relay_operations(int time, int day){
   //int time = (String(now.hour())+String(now.minute())).toInt();
   int TotalSchedules = 0;
   EEPROM.get(0, TotalSchedules);
+  
+  for (int i = 0; i<Total_Relays; i++){
+    RelaysOutput[i] = 0;
+  }
 
   for(int i = 1;i<=TotalSchedules;i++){
     int Start_addr =  5 + (24 * (i -1));
@@ -99,7 +110,9 @@ void relay_operations(int time, int day){
             for(int j=0;j<Total_Relays;j++){
               if(String(RelayCode[j]).toInt()==1){
                 Serial.println("Relay " + String(j+1) + "  On For Schedule "+String(i));
-                digitalWrite(D0,LOW);
+                //digitalWrite(D0,LOW);
+                //digitalWrite(pins[j],LOW);
+                RelaysOutput[j]+=1;
               }
             }
           }
@@ -117,7 +130,8 @@ void relay_operations(int time, int day){
               if(String(RelayCode[j]).toInt()==1){
                 Serial.println("Relay " + String(j+1));
                 Serial.println("Schedule "+String(i+1));
-                digitalWrite(D0,LOW);
+                //digitalWrite(D0,LOW);
+                RelaysOutput[j]+=1;
               }
             }
           }
@@ -125,13 +139,13 @@ void relay_operations(int time, int day){
       }
       else if( ( time < (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ) ){
         Serial.println("Relay Off For Schedule"+String(i));
-        digitalWrite(D0,HIGH);
+        //digitalWrite(D0,HIGH);
       }
     }
     else if( (String(start_hr)+String(start_min)).toInt()  <= (String(end_hr)+String(end_min)).toInt() ){
       if( ( time > (String(start_hr)+String(start_min)).toInt() && time > (String(end_hr)+String(end_min)).toInt() ) || ( time < (String(start_hr)+String(start_min)).toInt() && time < (String(end_hr)+String(end_min)).toInt() ) ){
         Serial.println("Relay off For Schedule"+String(i));
-        digitalWrite(D0,HIGH);
+        //digitalWrite(D0,HIGH);
       }
       else if( ( time >= (String(start_hr)+String(start_min)).toInt() && time <= (String(end_hr)+String(end_min)).toInt() ) ){
         //Serial.println("Relay On For Schedule"+(i+1));
@@ -140,7 +154,8 @@ void relay_operations(int time, int day){
               if(String(RelayCode[j]).toInt()==1){
                 Serial.println("Relay On " + String(j+1));
                 Serial.println("Schedule "+String(i));
-                digitalWrite(D0,LOW);
+                //digitalWrite(D0,LOW);
+                RelaysOutput[j]+=1;
               }
             }
           }
@@ -148,6 +163,18 @@ void relay_operations(int time, int day){
     }
 
 
+  }
+
+  
+  for (int i = 0; i<Total_Relays; i++){
+    //Serial.println(time);
+    //Serial.println(RelaysOutput[i]);
+    if(RelaysOutput[i]>0){
+      digitalWrite(pins[i],LOW);
+    }
+    else{
+      digitalWrite(pins[i],HIGH);
+    }
   }
 
 
